@@ -1,0 +1,23 @@
+REFERENCES:
+
+
+Mankiw, N. G. (2017). Principles of macroeconomics (8th ed.). Cengage Learning.
+
+Ball, L. (2014). The case for a long-run inflation target of four percent. IMF Economic Review, 62(1), 184-207.
+
+Friedman, M. 1956. The quantity theory of money — a restatement.
+
+Fischer S. (1993) “The Role of Macroeconomic Factors in Growth”, Journal of Monetary Economics, Vol. 32, pp. 45-66.
+
+R Core Team (2023). _R: A Language and Environment for Statistical Computing_. R Foundation for Statistical Computing, Vienna, Austria. <https://www.R-project.org/>.
+
+Hlavac, Marek (2022). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+
+Pfaff B (2008). “VAR, SVAR and SVEC Models: Implementation Within R Package vars.” Journal of Statistical Software, 27(4). https://www.jstatsoft.org/v27/i04/.
+
+U.S. Bureau of Economic Analysis, Real Gross Domestic Product [GDPC1], retrieved from FRED, Federal Reserve Bank of St. Louis; https://fred.stlouisfed.org/series/GDPC1, April 23, 2023.
+
+Federal Reserve Bank of St. Louis, Real M2 Money Stock [M2REAL], retrieved from FRED, Federal Reserve Bank of St. Louis; https://fred.stlouisfed.org/series/M2REAL, April 24, 2023.
+
+Organization for Economic Co-operation and Development, Consumer Price Index: Total All Items for the United States [CPALTT01USQ661S], retrieved from FRED, Federal Reserve Bank of St. Louis; https://fred.stlouisfed.org/series/CPALTT01USQ661S, April 23, 2023.
+
