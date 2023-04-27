@@ -1,0 +1,332 @@
+install.packages("quantmod")
+install.packages("vars")
+install.packages("tseries")
+install.packages("tidyverse")
+install.packages("ggExtra")
+install.packages("TSstudio")
+install.packages("devtools")
+install.packages("stargazer")
+install.packages("kableExtra")
+install.packages("ggpubr")
+
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(knitr)
+library(quantmod)
+library(vars)
+library(tseries)
+library(ggExtra) 
+library(tidyverse)
+library(TSstudio)
+library(gridExtra)
+library(forecast)
+library(stargazer)
+library(kableExtra)
+library(devtools)
+source_url("https://raw.githubusercontent.com/anguyen1210/var-tools/master/R/extract_varirf.R")
+
+
+
+#Loading the Dataset
+macro <- read_csv(file.choose())
+
+
+macro_sub <- macro[161:250, ]
+
+
+#Creating thee Time Series 
+y1 <- ts(macro_sub$GDP, start = c(2000,1,1), frequency = 4)
+pi1 <- ts(macro_sub$CPI, start = c(2000,1,1), frequency = 4)
+m21 <- ts(macro_sub$M2, start = c(2000,1,1), frequency = 4)
+
+
+#Time Series data after DIFF
+y <- ts(diff(macro_sub$GDP, start = c(2000,1,1), frequency = 4))
+pi <- ts(diff(macro_sub$CPI, start = c(2000,1,1), frequency = 4))
+m2 <- ts(diff(macro_sub$M2, start = c(2000,1,1), frequency = 4))
+un <- ts(diff(macro_sub$UNEMP, start = c(2000,1,1), frequency = 4))
+
+#Time Series Plots after DIFF
+ts_plot(pi, title = "Inflation Rate", Xtitle = "Time", Ytitle = "Inflation Rate")
+ts_plot(m2, title = "Real M2", Xtitle = "Time", Ytitle = "M2")
+ts_plot(y, title = "GDP", Xtitle = "Time", Ytitle = "y")
+
+
+# Presenting the Variables before and after Diff
+d1 <- ggplot(data = data.frame(x = time(y1), y = y1), aes(x = x, y = y)) +
+  geom_line(color = "#92C581", size = 1.1) +
+  labs(title = "GDP", x = "", y = "") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), 
+        panel.grid.minor = element_blank(), panel.background = element_blank())
+
+d2 <- ggplot(data = data.frame(x = time(pi1), y = pi1), aes(x = x, y = y)) +
+  geom_line(color = "#706BA4", size = 1.1) +
+  labs(title = "CPI", x = "", y = "") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), 
+        panel.grid.minor = element_blank(), panel.background = element_blank())
+
+d3 <- ggplot(data = data.frame(x = time(m21), y = m21), aes(x = x, y = y)) +
+  geom_line(color = "#58A4B0", size = 1.1) +
+  labs(title = "M2", x = "", y = "") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), 
+        panel.grid.minor = element_blank(), panel.background = element_blank())
+
+d4 <- ggplot(data = data.frame(x = time(y), y = y), aes(x = x, y = y)) +
+  geom_line(color = "#92C581", size = 1.1) +
+  labs(title = "", x = "", y = "") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), 
+        panel.grid.minor = element_blank(), panel.background = element_blank())
+
+d5 <- ggplot(data = data.frame(x = time(pi), y = pi), aes(x = x, y = y)) +
+  geom_line(color = "#706BA4", size = 1.1) +
+  labs(title = "", x = "", y = "") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), 
+        panel.grid.minor = element_blank(), panel.background = element_blank())
+
+d6 <- ggplot(data = data.frame(x = time(m2), y = m2), aes(x = x, y = y)) +
+  geom_line(color = "#58A4B0", size = 1.1) +
+  labs(title = "", x = "", y = "") +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), 
+        panel.grid.minor = element_blank(), panel.background = element_blank())
+
+
+# Arrange the plots in a grid
+grid.arrange(d3, d2, d1, d6, d5, d4, ncol = 3, top = "Raw Data. Non-Stationary", bottom = "Stationary Data with Diff() method")
+
+
+#Setting the Restrictions
+amat <- diag(3)
+amat[2,1] <- NA
+amat[3,1] <- NA
+amat[3,2] <- NA
+amat
+
+#Buidling the VAR
+sv <- cbind(m2,pi,y)
+colnames(sv) <- cbind("M2", "Inflation", "GDP")
+
+#Optimum lag test
+lagselect <- VARselect(sv, lag.max = 14, type = "both")
+lagselect$selection
+lagselect$criteria
+
+
+#Building the SVAR
+Model1 <- VAR(sv, p = 4, season = NULL, exog = NULL, type = "const")
+SVARMod1 <- SVAR(Model1, Amat = amat, Bmat = NULL, hessian = TRUE, estmethod = c("scoring", "direct"))
+SVARMod1
+summary(SVARMod1)
+
+#Impulse Response Functions
+SVAR1 <- irf(SVARMod1, impulse = "M2", response = "M2")
+p1 <- plot(SVAR1, main = "Impulse Response Function from M2 Shock")
+
+
+SVAR2 <- irf(SVARMod1, impulse = "M2", response = "Inflation")
+p2 <- plot(SVAR2, main = "Impulse Response Function of Inflation on M2 shock")
+
+SVAR3 <- irf(SVARMod1, impulse = "M2", response = "GDP")
+p3 <- plot(SVAR3, main = "Impulse Response Function of GDP on M2 Shock")
+
+
+
+####################   IRF DATA VISUALIZATION
+#GET IRF in values
+
+
+single_varirf_grouped <- extract_varirf(SVAR1, SVAR2, SVAR3)
+
+
+#visually plot IRF
+
+M2_plot <- single_varirf_grouped %>% 
+  ggplot(aes(x=period, y=irf_m2_m2)) +
+  geom_hline(yintercept = 0, color="#FF4500") +
+  geom_ribbon(aes(ymin=lower_m2_m2, ymax=upper_m2_m2), fill="grey", alpha=0.2) +
+  geom_line(linewidth = 1.5, color = "#58A4B0") +
+  theme_light() +
+  ggtitle("M2 shock") +
+  ylab("M2") +
+  xlab("") +
+  theme(plot.title = element_text(size = 11, hjust=0.5),
+        axis.title.y = element_text(size=11),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+
+inflation_plot <- single_varirf_grouped %>% 
+  ggplot(aes(x=period, y=irf_m2_inflation)) +
+  geom_hline(yintercept = 0, color="#FF4500") +
+  geom_ribbon(aes(ymin=lower_m2_inflation, ymax=upper_m2_inflation), fill="grey", alpha=0.2) +
+  geom_line(linewidth = 1.5, color = "#58A4B0") +
+  theme_light() +
+  ggtitle("M2 On Inflation") +
+  ylab("Inflation") +
+  xlab("") +
+  theme(plot.title = element_text(size = 11, hjust=0.5),
+        axis.title.y = element_text(size=11),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+
+GDP_plot <- single_varirf_grouped %>% 
+  ggplot(aes(x=period, y=irf_m2_gdp)) +
+  geom_hline(yintercept = 0, color="#FF4500") +
+  geom_ribbon(aes(ymin=lower_m2_gdp, ymax=upper_m2_gdp), fill="grey", alpha=0.2) +
+  geom_line(size = 1.5, color = "#58A4B0") +
+  theme_light() +
+  ggtitle("M2 on GDP") +
+  ylab("GDP") +
+  xlab("") +
+  theme(plot.title = element_text(size = 11, hjust=0.5),
+        axis.title.y = element_text(size=11),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+
+grid.arrange(M2_plot, inflation_plot,GDP_plot, ncol = 3, top = "Impulse Response Functions" , bottom = "95% Bootstrap CI, 100 runs")
+
+
+
+# Lagging P 
+pi_lag4 <- lag(macro_sub$GDP, 4)
+
+# Removing the last row of pi_lag4
+data4 <- data.frame(pi_lag4)
+data4 <- data4[-90,]
+
+# Combining the lagged variable with the original variable
+data5 <- data.frame(pi, data4, m2)
+data5_clean <- data5[-c(1:4, 81:89),]
+
+# Defining the regression with the lagged variable
+model <- lm(data4 ~ m2, data=data5_clean)
+summary(model)
+
+# Creating a scatterplot of m2 against data4 with data5_clean using ggplot2
+ggplot(data5_clean, aes(x = data4, y = m2)) +
+  geom_point(size = 3, alpha = 0.8, color = "#008080") +
+  geom_smooth(method = "lm", se = FALSE, color = "#FF4500", linewidth = 1.2) +
+  labs(title = "Relationship between M2 and Inflation", x = "Inflation", y = "M2") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 16),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) 
+
+# Stargazer table for regression results
+stargazer(model, type="text", title="Regression Results", 
+          dep.var.caption="Dependent Variable: Inflation", 
+          single.row=TRUE, star.cutoffs=c(0.05,0.01,0.001))
+
+
+
+
+# Run the Granger causality test
+grangertest(pi ~ m2 , order = 4, data = sv)
+
+
+
+
+#Test for Serial Correlation
+Serial1 <- serial.test(Model1, lags.pt = 8, type = "PT.asymptotic")
+Serial1 
+
+#Heteroscedasticity
+Arch1 <- arch.test(Model1, lags.multi = 8, multivariate.only = TRUE)
+Arch1
+
+
+#Normal distribution of Residuals
+Norm1 <- normality.test(Model1, multivariate.only = TRUE )
+Norm1 
+
+
+
+
+
+##########NON STATIONARY TESTS
+
+####Non stationary ADF test
+adf_test1 <- adf.test(y)
+print(adf_test1)
+
+adf_test2 <- adf.test(pi)
+print(adf_test2)
+
+adf_test3 <- adf.test(m2)
+print(adf_test3)
+
+
+####Non stationary PP test 
+pp_test1 <- pp.test(y)
+print(pp_test1)
+
+pp_test2 <- pp.test(pi)
+print(pp_test2)
+
+pp_test3 <- pp.test(m2)
+print(pp_test3)
+
+####Non stationary Kpss test
+kpss1 <- kpss.test(y)
+print(kpss1)
+
+kpss2 <- kpss.test(pi)
+print(kpss2)
+
+kpss3 <- kpss.test(m2)
+print(kpss3)
+
+#####################################
+# Set the significance level
+alpha <- 0.05
+
+# Define a function to add the stationary/non-stationary labels for adf and pp tests
+add_labels_adf_pp <- function(x) {
+  if (x <= alpha) {
+    return("Stationary")
+  } else {
+    return("Non-Stationary")
+  }
+}
+
+# Define a function to add the stationary/non-stationary labels for kpss test
+add_labels_kpss <- function(x) {
+  if (x > alpha) {
+    return("Stationary")
+  } else {
+    return("Non-Stationary")
+  }
+}
+
+# Define a function to add the background color based on the test result
+add_background <- function(x) {
+  if (x == "Stationary") {
+    return("#6a9955") # Green
+  } else {
+    return("#F5AB00") # Orange
+  }
+}
+
+# Create a data frame with your test results
+test_results <- data.frame(variable = c("y", "pi", "m2"),
+                           adf_test_pvalue = c(adf_test1$p.value, adf_test2$p.value, adf_test3$p.value),
+                           pp_test_pvalue = c(pp_test1$p.value, pp_test2$p.value, pp_test3$p.value),
+                           kpss_test_pvalue = c(kpss1$p.value, kpss2$p.value, kpss3$p.value),
+                           adf_test_result = sapply(c(adf_test1$p.value, adf_test2$p.value, adf_test3$p.value), add_labels_adf_pp),
+                           pp_test_result = sapply(c(pp_test1$p.value, pp_test2$p.value, pp_test3$p.value), add_labels_adf_pp),
+                           kpss_test_result = sapply(c(kpss1$p.value, kpss2$p.value, kpss3$p.value), add_labels_kpss),
+                           stringsAsFactors = FALSE)
+
+# Format the table using kableExtra
+kable(test_results[, c(1, 2, 5, 3, 6, 4, 7)], align = "c", booktabs = TRUE, 
+      caption = "Non-Stationary Test Results. Alpha=5%") %>%
+  kable_styling() %>%
+  column_spec(3, color = "white", background = ifelse(test_results[,5] == "Stationary", "#6a9955", "#F5AB00")) %>%
+  column_spec(5, color = "white", background = ifelse(test_results[,6] == "Stationary", "#6a9955", "#F5AB00")) %>%
+  column_spec(7, color = "white", background = ifelse(test_results[,7] == "Stationary", "#6a9955", "#F5AB00"))
+
+
